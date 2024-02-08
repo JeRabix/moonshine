@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MoonShine\Http\Controllers;
 
+use Illuminate\Support\Arr;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Fields\Relationships\HasAsyncSearch;
 use MoonShine\Fields\Relationships\MorphTo;
@@ -34,9 +35,17 @@ class RelationModelFieldController extends MoonShineController
         if ($field instanceof MorphTo) {
             $field->resolveFill([], $model);
 
-            $morphClass = $field->getWrapName()
-                ? data_get($request->get($field->getWrapName(), []), $field->getMorphType())
-                : $request->get($field->getMorphType());
+            if ($request->has('_parent_field')) {
+                $json = $request->get('_parent_field', []);
+
+                $item = Arr::first($json, fn($item): bool => Arr::get($item, $field->getMorphType()) !== null);
+
+                $morphClass = Arr::get($item, $field->getMorphType());
+            } else {
+                $morphClass = $field->getWrapName()
+                    ? data_get($request->get($field->getWrapName(), []), $field->getMorphType())
+                    : $request->get($field->getMorphType());
+            }
 
             $model = new $morphClass();
             $searchColumn = $field->getSearchColumn($morphClass);
